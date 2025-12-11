@@ -1,50 +1,105 @@
-import styled from "@emotion/styled";
-import { useLocation, useNavigate } from "react-router-dom";
-
-const Page = styled.div`
-  min-height: 100vh;
-  background: #000;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-sizing: border-box;
-  flex-direction: column;
-`;
-
-const Card = styled.div`
-  max-width: 720px;
-  width: 92vw;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 20px;
-  border-radius: 12px;
-  text-align: center;
-`;
-
-const Button = styled.button`
-  margin-top: 18px;
-  padding: 10px 18px;
-  background: #1db954;
-  color: #000;
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-`;
+import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 export default function Player() {
   const { state } = useLocation();
-  const navigate = useNavigate();
+  const qrUrl = state?.qr;
+  const [deviceId, setDeviceId] = useState(null);
 
-  const qr = state?.qr || "NO QR RECEIVED";
+  // Extract track id
+  const trackId = qrUrl?.split("/track/")[1]?.split("?")[0];
+  const trackUri = `spotify:track:${trackId}`;
+
+  // Your Spotify app credentials
+  const CLIENT_ID = "97e19d6293db4379b6c20bd12a24f75a";
+  const REDIRECT_URI = "https://fakester.vercel.app/";
+
+  function loadSpotifySDK() {
+    return new Promise((resolve) => {
+      if (window.Spotify) {
+        resolve(window.Spotify);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.onload = () => resolve(window.Spotify);
+      document.body.appendChild(script);
+    });
+  }
+
+  function getAccessTokenFromUrl() {
+    const hash = window.location.hash;
+    if (!hash.includes("access_token")) return null;
+    return new URLSearchParams(hash.replace("#", "")).get("access_token");
+  }
+
+  function requestToken() {
+    const url =
+      "https://accounts.spotify.com/authorize?" +
+      new URLSearchParams({
+        client_id: CLIENT_ID,
+        response_type: "token",
+        redirect_uri: REDIRECT_URI,
+        scope: "streaming user-read-email user-read-private",
+      });
+
+    window.location.href = url;
+  }
+
+  async function autoplay(token, deviceId) {
+    await fetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uris: [trackUri],
+        }),
+      }
+    );
+  }
+
+  useEffect(() => {
+    async function setup() {
+      // 1. Get token or request login
+      const token = getAccessTokenFromUrl();
+      if (!token) {
+        requestToken();
+        return;
+      }
+
+      // 2. Load the Spotify SDK
+      await loadSpotifySDK();
+
+      // 3. Initialize Spotify Player
+      const player = new window.Spotify.Player({
+        name: "Hitster Web Player",
+        getOAuthToken: (cb) => cb(token),
+        volume: 0.8,
+      });
+
+      player.addListener("ready", ({ device_id }) => {
+        console.log("Player ready:", device_id);
+        setDeviceId(device_id);
+        autoplay(token, device_id);
+      });
+
+      player.connect();
+    }
+
+    setup();
+  }, []);
+
   return (
-    <Page>
-      <Card>
-        <h2 style={{ marginBottom: 8 }}>Scanned QR</h2>
-        <p style={{ wordBreak: "break-all" }}>{qr}</p>
-        <Button onClick={() => navigate("/scanner")}>SCAN NEXT</Button>
-      </Card>
-    </Page>
+    <div style={{ padding: 40, color: "white", textAlign: "center" }}>
+      <h1>Playing Track...</h1>
+      <p>{trackUri}</p>
+
+      {!deviceId && <p>Loading Spotify Player…</p>}
+    </div>
   );
 }
