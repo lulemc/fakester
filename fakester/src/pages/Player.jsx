@@ -76,26 +76,25 @@ export default function Player() {
     init();
   }, []);
 
+  async function loadSpotifySDK() {
+    return new Promise((resolve) => {
+      if (window.Spotify) return resolve();
+      window.onSpotifyWebPlaybackSDKReady = resolve;
+      const script = document.createElement("script");
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      document.body.appendChild(script);
+    });
+  }
+
   useEffect(() => {
     if (!token || !qrUrl) return;
 
-    // define trackUri here
     const trackId = qrUrl.split("/track/")[1]?.split("?")[0];
-    if (!trackId) return;
     const trackUri = `spotify:track:${trackId}`;
 
-    async function setupPlayer() {
-      if (!window.Spotify) {
-        await new Promise((resolve) => {
-          const script = document.createElement("script");
-          script.src = "https://sdk.scdn.co/spotify-player.js";
-          script.onload = resolve;
-          document.body.appendChild(script);
-        });
-      }
-
+    loadSpotifySDK().then(() => {
       const player = new window.Spotify.Player({
-        name: "Fakster Web Player",
+        name: "Hitster Web Player",
         getOAuthToken: (cb) => cb(token),
         volume: 0.8,
       });
@@ -109,15 +108,13 @@ export default function Player() {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ uris: [trackUri] }), // now defined
+            body: JSON.stringify({ uris: [trackUri] }),
           }
         );
       });
 
       player.connect();
-    }
-
-    setupPlayer();
+    });
   }, [token, qrUrl]);
 
   return (
