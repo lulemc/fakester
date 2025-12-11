@@ -1,62 +1,50 @@
-import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import styled from "@emotion/styled";
+import { useLocation, useNavigate } from "react-router-dom";
+
+const Page = styled.div`
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  flex-direction: column;
+`;
+
+const Card = styled.div`
+  max-width: 720px;
+  width: 92vw;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+`;
+
+const Button = styled.button`
+  margin-top: 18px;
+  padding: 10px 18px;
+  background: #1db954;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+`;
 
 export default function Player() {
-  const [player, setPlayer] = useState(null);
-  const [token, setToken] = useState("97e19d6293db4379b6c20bd12a24f75a"); // Your OAuth token
-  const searchParams = new URLSearchParams(window.location.search);
-  const spotifyUrl = searchParams.get("spotifyUrl");
+  const { state } = useLocation();
   const navigate = useNavigate();
 
-  const getTrackUri = (url) => {
-    const match = url?.match(/track\/([a-zA-Z0-9]+)/);
-    return match ? `spotify:track:${match[1]}` : null;
-  };
-
-  useEffect(() => {
-    if (!spotifyUrl || !token) return;
-    const script = document.createElement("script");
-    script.src = "https://sdk.scdn.co/spotify-player.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      const webPlayer = new window.Spotify.Player({
-        name: "Fakester Web Player",
-        getOAuthToken: (cb) => cb(token),
-        volume: 0.8,
-      });
-
-      webPlayer.connect().then((success) => {
-        if (success) {
-          console.log("Spotify Web Playback connected");
-          const uri = getTrackUri(spotifyUrl);
-          if (uri) {
-            fetch(`https://api.spotify.com/v1/me/player/play`, {
-              method: "PUT",
-              body: JSON.stringify({ uris: [uri] }),
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            });
-          }
-        }
-      });
-
-      setPlayer(webPlayer);
-    };
-  }, [spotifyUrl, token]);
-
+  const qr = state?.qr || "NO QR RECEIVED";
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-black text-white">
-      <h2 className="mb-4">Playing your track...</h2>
-      <button
-        className="px-6 py-3 bg-green-500 rounded-lg"
-        onClick={() => navigate("/scanner")}
-      >
-        NEXT
-      </button>
-    </div>
+    <Page>
+      <Card>
+        <h2 style={{ marginBottom: 8 }}>Scanned QR</h2>
+        <p style={{ wordBreak: "break-all" }}>{qr}</p>
+        <Button onClick={() => navigate("/scanner")}>SCAN NEXT</Button>
+      </Card>
+    </Page>
   );
 }
