@@ -79,6 +79,7 @@ export default function Player() {
   useEffect(() => {
     if (!token || !qrUrl) return;
 
+    // define trackUri here
     const trackId = qrUrl.split("/track/")[1]?.split("?")[0];
     if (!trackId) return;
     const trackUri = `spotify:track:${trackId}`;
@@ -94,7 +95,7 @@ export default function Player() {
       }
 
       const player = new window.Spotify.Player({
-        name: "Hitster Web Player",
+        name: "Fakster Web Player",
         getOAuthToken: (cb) => cb(token),
         volume: 0.8,
       });
@@ -108,7 +109,7 @@ export default function Player() {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ uris: [trackUri] }),
+            body: JSON.stringify({ uris: [trackUri] }), // now defined
           }
         );
       });
