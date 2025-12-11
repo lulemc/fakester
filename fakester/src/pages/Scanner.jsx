@@ -121,13 +121,13 @@ export default function Scanner({ onDetected }) {
         setLoading(false);
       }
     };
-    navigate("/player", {
+    /* navigate("/player", {
       state: {
         qr: "https://open.spotify.com/track/6AoEkZTlvlpBGoo1dyJFMo?si=7f8c2195cab944b5",
       },
-    });
+    });*/
 
-    //startScanner();
+    startScanner();
     return () => {
       stoppedRef.current = true;
       if (html5Ref.current) {

@@ -1,22 +1,30 @@
 // Player.jsx
 import { useEffect, useState } from "react";
 import { generateCodeVerifier, generateCodeChallenge } from "./pkce";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Player() {
-  const CLIENT_ID = "97e19d6293db4379b6c20bd12a24f75a";
-  const REDIRECT_URI = "https://fakester.vercel.app/player";
+  const [status, setStatus] = useState("Initializing...");
+  const [player, setPlayer] = useState(null);
+  const { state } = useLocation();
+  const [deviceId, setDeviceId] = useState(null);
+  const [playing, setPlaying] = useState(false);
+  const navigate = useNavigate();
 
-  const [token, setToken] = useState(null);
-  const [qrUrl, setQrUrl] = useState(null);
+  const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+  const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
+  const token = import.meta.env.VITE_SPOTIFY_ACCESS_TOKEN;
+
+  const qrUrl = decodeURIComponent(state.qr);
 
   useEffect(() => {
-    async function init() {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-      const qrFromState = params.get("state") || params.get("qr"); // get QR from state or fallback
-
+    /*async function init() {
+      //const code = params.get("code");
+      const qrFromState = state.qr;
+      console.log(qrFromState);
       if (qrFromState) setQrUrl(decodeURIComponent(qrFromState));
-
+    }
+    
       if (!code) {
         // Step 1: first time, generate PKCE and redirect to Spotify login
         const verifier = generateCodeVerifier();
@@ -72,34 +80,47 @@ export default function Player() {
       );
       //localStorage.removeItem("pkce_verifier");
     }
-
-    init();
+*/
+    // init();
   }, []);
 
-  async function loadSpotifySDK() {
-    return new Promise((resolve) => {
-      if (window.Spotify) return resolve();
-      window.onSpotifyWebPlaybackSDKReady = resolve;
-      const script = document.createElement("script");
-      script.src = "https://sdk.scdn.co/spotify-player.js";
-      document.body.appendChild(script);
-    });
-  }
-
   useEffect(() => {
-    if (!token || !qrUrl) return;
+    if (!token || !qrUrl) {
+      console.log("Missing token or QR URL");
+      return;
+    }
 
     const trackId = qrUrl.split("/track/")[1]?.split("?")[0];
+    console.log("Extracted track ID:", trackId);
     const trackUri = `spotify:track:${trackId}`;
+    console.log("Playing track URI:", trackUri);
 
-    loadSpotifySDK().then(() => {
+    window.onSpotifyWebPlaybackSDKReady = () => {
       const player = new window.Spotify.Player({
-        name: "Hitster Web Player",
+        name: "Fakester Web Player",
         getOAuthToken: (cb) => cb(token),
         volume: 0.8,
       });
 
+      // Listen for errors
+      player.addListener("initialization_error", ({ message }) =>
+        console.error(message)
+      );
+      player.addListener("authentication_error", ({ message }) =>
+        console.error(message)
+      );
+      player.addListener("account_error", ({ message }) =>
+        console.error(message)
+      );
+      player.addListener("playback_error", ({ message }) =>
+        console.error(message)
+      );
+
+      // Ready event
       player.addListener("ready", ({ device_id }) => {
+        console.log("Device ready:", device_id);
+
+        // Play track
         fetch(
           `https://api.spotify.com/v1/me/player/play?device_id=${device_id}`,
           {
@@ -110,17 +131,57 @@ export default function Player() {
             },
             body: JSON.stringify({ uris: [trackUri] }),
           }
-        );
+        )
+          .then((res) => {
+            if (!res.ok)
+              console.error("Playback error", res.status, res.statusText);
+            else setStatus("Playing track!");
+          })
+          .catch((err) => console.error(err));
+      });
+
+      player.addListener("not_ready", ({ device_id }) => {
+        console.log("Device not ready:", device_id);
       });
 
       player.connect();
-    });
+      setPlayer(player);
+    };
+    // 2️⃣ Load SDK only once
+    if (!document.getElementById("spotify-sdk")) {
+      const script = document.createElement("script");
+      script.id = "spotify-sdk";
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      document.body.appendChild(script);
+    }
   }, [token, qrUrl]);
+
+  const togglePlay = () => {
+    player.togglePlay();
+    setPlaying(true);
+  };
+
+  const stopPlay = () => {
+    player.pause();
+    setPlaying(false);
+  };
+
+  const next = () => {
+    if (player) {
+      player.disconnect();
+    }
+    navigate("/scanner");
+  };
 
   return (
     <div style={{ color: "white", textAlign: "center", padding: 40 }}>
-      <h1>Playing Track...</h1>
-      <p>{qrUrl}</p>
+      <h1>{status}</h1>
+      {!playing ? (
+        <button onClick={() => togglePlay()}>▶️</button>
+      ) : (
+        <button onClick={() => stopPlay()}>⏸️</button>
+      )}
+      <button onClick={() => next()}>Next</button>
     </div>
   );
 }
