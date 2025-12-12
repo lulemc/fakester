@@ -77,7 +77,13 @@ export default function Scanner({ onDetected }) {
               .finally(() => {
                 onDetected && onDetected(decodedText);
               });
-            navigate("/player", { state: { qr: decodedText } });
+
+            const qrUrl = decodeURIComponent(decodedText);
+
+            const trackId = qrUrl.split("/track/")[1]?.split("?")[0];
+            const trackUri = `spotify:track:${trackId}`;
+            console.log("Track URI:", trackUri);
+            navigate("/player", { state: { trackUri: trackUri } });
           },
           (errorMessage) => {
             console.debug("QR error:", errorMessage);
@@ -100,11 +106,13 @@ export default function Scanner({ onDetected }) {
       if (html5Ref.current) {
         try {
           html5Ref.current.stop().catch(() => {});
+          console.log("HTML5 QR code scanner stopped on unmount");
         } catch {
           console.log("Failed to stop html5-qrcode on unmount");
         }
       }
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

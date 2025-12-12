@@ -1,9 +1,12 @@
 const express = require("express");
 const axios = require("axios");
 const qs = require("querystring");
+var cors = require("cors");
+
 require("dotenv").config();
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI } =
@@ -21,6 +24,7 @@ app.get("/authorize", (req, res) => {
     client_id: SPOTIFY_CLIENT_ID,
     scope,
     redirect_uri: SPOTIFY_REDIRECT_URI,
+    client_secret: SPOTIFY_CLIENT_SECRET,
   });
 
   res.redirect(`https://accounts.spotify.com/authorize?${params}`);
@@ -42,6 +46,7 @@ app.get("/callback", async (req, res) => {
         grant_type: "authorization_code",
         code: code,
         redirect_uri: SPOTIFY_REDIRECT_URI,
+        client_secret: SPOTIFY_CLIENT_SECRET,
       }),
       {
         headers: {

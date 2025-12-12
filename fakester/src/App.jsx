@@ -9,6 +9,8 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/:code" element={<Home />} />
+
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/player" element={<Player />} />
       </Routes>
